@@ -1,231 +1,364 @@
+import React, { useState } from 'react';
+const COURSES  = ['', 'Java Full Stack', 'React Frontend', 'Spring Boot', 'DevOps', 'Cloud AWS', 'Data Science'];
+const STATES   = ['', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Delhi', 'Gujarat', 'West Bengal'];
+const GENDERS  = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 
-import React, { useState, useMemo } from 'react';
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const EMPLOYEES = [
-  { id: 1,  name: 'Alice Johnson',  dept: 'Engineering', role: 'Senior Dev',     salary: 95000, skills: ['Java','React','Spring'], active: true  },
-  { id: 2,  name: 'Bob Smith',      dept: 'Marketing',   role: 'Manager',        salary: 72000, skills: ['SEO','Analytics'],        active: true  },
-  { id: 3,  name: 'Carol White',    dept: 'Engineering', role: 'Lead Dev',       salary: 108000,skills: ['Java','Microservices'],   active: false },
-  { id: 4,  name: 'David Brown',    dept: 'HR',          role: 'HR Specialist',  salary: 58000, skills: ['Recruitment','Payroll'],  active: true  },
-  { id: 5,  name: 'Eva Martinez',   dept: 'Engineering', role: 'Frontend Dev',   salary: 82000, skills: ['React','TypeScript'],     active: true  },
-  { id: 6,  name: 'Frank Lee',      dept: 'Marketing',   role: 'Content Writer', salary: 55000, skills: ['Content','SEO'],         active: false },
-  { id: 7,  name: 'Grace Chen',     dept: 'HR',          role: 'HR Manager',     salary: 67000, skills: ['Training','Compliance'],  active: true  },
-  { id: 8,  name: 'Hank Wilson',    dept: 'Engineering', role: 'DevOps Eng',     salary: 91000, skills: ['Docker','K8s','CI/CD'],   active: true  },
-  { id: 9,  name: 'Iris Davis',     dept: 'Marketing',   role: 'Brand Designer', salary: 63000, skills: ['Figma','Branding'],      active: true  },
-  { id: 10, name: 'Jack Thompson',  dept: 'Engineering', role: 'Backend Dev',    salary: 87000, skills: ['Spring','MySQL','AWS'],   active: true  },
-];
-
-const DEPTS = ['All', ...new Set(EMPLOYEES.map(e => e.dept))];
-function SkillBadge({ skill }) {
+const INITIAL_FORM = {
+  firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '',
+  dob: '', gender: '', address: '', state: '', pincode: '',
+  course: '', experience: '', batch: '', salary: '',
+  hearFrom: [], terms: false, newsletter: false,
+};
+function validate(form) {
+  const errors = {};
+  if (!form.firstName.trim() || form.firstName.length < 2)
+    errors.firstName = 'First name must be at least 2 characters';
+  if (!form.lastName.trim())
+    errors.lastName = 'Last name is required';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email))
+    errors.email = 'Enter a valid email address';
+  if (!/^\d{10}$/.test(form.phone))
+    errors.phone = 'Phone must be exactly 10 digits';
+  if (form.password.length < 8)
+    errors.password = 'Password must be at least 8 characters';
+  if (!/(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])/.test(form.password))
+    errors.password = 'Must include uppercase, number, and special character';
+  if (form.password !== form.confirmPassword)
+    errors.confirmPassword = 'Passwords do not match';
+  if (!form.dob)
+    errors.dob = 'Date of birth is required';
+  else {
+    const age = new Date().getFullYear() - new Date(form.dob).getFullYear();
+    if (age < 18) errors.dob = 'You must be at least 18 years old';
+  }
+  if (!form.gender)    errors.gender    = 'Please select a gender';
+  if (!form.address.trim()) errors.address = 'Address is required';
+  if (!form.state)     errors.state     = 'Please select a state';
+  if (!/^\d{6}$/.test(form.pincode))
+    errors.pincode = 'Pincode must be 6 digits';
+  if (!form.course)    errors.course    = 'Please select a course';
+  if (!form.experience) errors.experience = 'Please select experience level';
+  if (form.hearFrom.length === 0)
+    errors.hearFrom = 'Please select at least one option';
+  if (!form.terms)
+    errors.terms = 'You must accept the Terms & Conditions';
+  return errors;
+}
+function Field({ label, required, error, children }) {
   return (
-    <span style={styles.badge}>{skill}</span>
+    <div style={styles.field}>
+      <label style={styles.label}>
+        {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
+      </label>
+      {children}
+      {error && <span style={styles.errorText}>⚠ {error}</span>}
+    </div>
   );
 }
+function PasswordStrength({ password }) {
+  let strength = 0;
+  if (password.length >= 8)           strength++;
+  if (/[A-Z]/.test(password))         strength++;
+  if (/[0-9]/.test(password))         strength++;
+  if (/[!@#$%^&*]/.test(password))    strength++;
 
-function EmployeeRow({ emp, index }) {
-  const [expanded, setExpanded] = useState(false);
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  const colors = ['', '#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
+
+  if (!password) return null;
   return (
-    <>
-      <tr style={{ background: index % 2 === 0 ? '#fff' : '#f8fafc', cursor: 'pointer' }}
-          onClick={() => setExpanded(v => !v)}>
-        <td style={td}>{emp.id}</td>
-        <td style={td}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ ...styles.avatar, background: stringToColor(emp.name) }}>
-              {emp.name.charAt(0)}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600 }}>{emp.name}</div>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>{emp.role}</div>
-            </div>
-          </div>
-        </td>
-        <td style={td}>{emp.dept}</td>
-        <td style={td}>₹{emp.salary.toLocaleString()}</td>
-        <td style={td}>
-          <span style={{ ...styles.statusTag, background: emp.active ? '#dcfce7' : '#fee2e2', color: emp.active ? '#166534' : '#991b1b' }}>
-            {emp.active ? '● Active' : '● Inactive'}
-          </span>
-        </td>
-        <td style={td}>
-          <span style={{ fontSize: 12, color: '#6b7280' }}>{expanded ? '▲ Hide' : '▼ Skills'}</span>
-        </td>
-      </tr>
-      {/* Expanded row: nested list of skills */}
-      {expanded && (
-        <tr>
-          <td colSpan={6} style={{ padding: '8px 16px 12px 70px', background: '#eff6ff' }}>
-            <strong style={{ fontSize: 13 }}>Skills:</strong>
-            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              {/* KEY must be unique within this list */}
-              {emp.skills.map(skill => (
-                <SkillBadge key={`${emp.id}-${skill}`} skill={skill} />
-              ))}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-function DeptSummaryCard({ dept, employees }) {
-  const active    = employees.filter(e => e.active).length;
-  const avgSalary = Math.round(employees.reduce((s, e) => s + e.salary, 0) / employees.length);
-  const allSkills = [...new Set(employees.flatMap(e => e.skills))];
-
-  return (
-    <div style={styles.summaryCard}>
-      <h4 style={{ margin: '0 0 8px', color: '#1e3a8a' }}>{dept}</h4>
-      <p style={styles.summaryRow}><span>Employees</span><strong>{employees.length}</strong></p>
-      <p style={styles.summaryRow}><span>Active</span><strong style={{ color: '#10b981' }}>{active}</strong></p>
-      <p style={styles.summaryRow}><span>Avg Salary</span><strong>₹{avgSalary.toLocaleString()}</strong></p>
-      <div style={{ marginTop: 8 }}>
-        <span style={{ fontSize: 12, color: '#6b7280' }}>Skills:</span>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-          {allSkills.map(s => <SkillBadge key={s} skill={s} />)}
-        </div>
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= strength ? colors[strength] : '#e2e8f0' }} />
+        ))}
       </div>
+      <span style={{ fontSize: 12, color: colors[strength], fontWeight: 600 }}>
+        {labels[strength]}
+      </span>
+    </div>
+  );
+}
+function SuccessScreen({ formData, onReset }) {
+  return (
+    <div style={styles.successScreen}>
+      <div style={{ fontSize: 64 }}>🎉</div>
+      <h2 style={{ color: '#10b981' }}>Registration Successful!</h2>
+      <p>Welcome, <strong>{formData.firstName} {formData.lastName}</strong>!</p>
+      <p>You've enrolled in <strong>{formData.course}</strong>.</p>
+      <p>A confirmation email has been sent to <strong>{formData.email}</strong>.</p>
+      <button onClick={onReset} style={{ ...styles.submitBtn, marginTop: 20 }}>
+        Register Another
+      </button>
     </div>
   );
 }
 function App() {
-  const [search,    setSearch]    = useState('');
-  const [deptFilter, setDeptFilter] = useState('All');
-  const [activeOnly, setActiveOnly] = useState(false);
-  const [sortCol,   setSortCol]   = useState('id');
-  const [sortAsc,   setSortAsc]   = useState(true);
-  const filtered = useMemo(() => {
-    return EMPLOYEES
-      .filter(e => deptFilter === 'All' || e.dept === deptFilter)
-      .filter(e => !activeOnly || e.active)
-      .filter(e =>
-        e.name.toLowerCase().includes(search.toLowerCase()) ||
-        e.role.toLowerCase().includes(search.toLowerCase()) ||
-        e.skills.some(s => s.toLowerCase().includes(search.toLowerCase()))
-      )
-      .sort((a, b) => {
-        const val = typeof a[sortCol] === 'string'
-          ? a[sortCol].localeCompare(b[sortCol])
-          : a[sortCol] - b[sortCol];
-        return sortAsc ? val : -val;
-      });
-  }, [search, deptFilter, activeOnly, sortCol, sortAsc]);
+  const [form,      setForm]      = useState(INITIAL_FORM);
+  const [errors,    setErrors]    = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [step,      setStep]      = useState(1);  
 
-  const toggleSort = (col) => {
-    if (sortCol === col) setSortAsc(v => !v);
-    else { setSortCol(col); setSortAsc(true); }
+  const handleChange = ({ target }) => {
+    const { name, value, type, checked } = target;
+
+    if (type === 'checkbox' && name === 'hearFrom') {
+      setForm(prev => ({
+        ...prev,
+        hearFrom: checked
+          ? [...prev.hearFrom, value]
+          : prev.hearFrom.filter(v => v !== value),
+      }));
+    } else if (type === 'checkbox') {
+      setForm(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
+    setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  const SortTh = ({ col, label }) => (
-    <th style={{ ...th, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSort(col)}>
-      {label} {sortCol === col ? (sortAsc ? ' ▲' : ' ▼') : ' ⇅'}
-    </th>
-  );
-  const deptGroups = DEPTS.slice(1).map(dept => ({
-    dept,
-    employees: EMPLOYEES.filter(e => e.dept === dept),
-  }));
+  const inp = (name) => ({
+    name,
+    value: form[name],
+    onChange: handleChange,
+    style: { ...styles.input, borderColor: errors[name] ? '#ef4444' : '#d1d5db' },
+  });
+
+  const validateStep = () => {
+    const all = validate(form);
+    const stepFields = {
+      1: ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword', 'dob', 'gender'],
+      2: ['address', 'state', 'pincode', 'course', 'experience'],
+      3: ['hearFrom', 'terms'],
+    };
+    const stepErrors = {};
+    stepFields[step].forEach(f => { if (all[f]) stepErrors[f] = all[f]; });
+    setErrors(prev => ({ ...prev, ...stepErrors }));
+    return Object.keys(stepErrors).length === 0;
+  };
+
+  const handleNext  = () => { if (validateStep()) setStep(s => s + 1); };
+  const handleBack  = () => setStep(s => s - 1);
+  const handleReset = () => { setForm(INITIAL_FORM); setErrors({}); setSubmitted(false); setStep(1); };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateStep()) setSubmitted(true);
+  };
+
+  if (submitted) return <div style={styles.container}><SuccessScreen formData={form} onReset={handleReset} /></div>;
+  const STEP_LABELS = ['Personal Info', 'Course & Address', 'Preferences & Submit'];
 
   return (
     <div style={styles.container}>
-      <h1 style={{ color: '#1e3a8a' }}>HOL 8: Lists & Keys — Employee Directory</h1>
+      <h1 style={{ color: '#1e3a8a', marginBottom: 6 }}>HOL 9: React Forms</h1>
+      <p style={{ color: '#6b7280', marginBottom: 24 }}>DN 5.0 Course Registration — Multi-Step Form</p>
 
-      {/* Controls */}
-      <div style={styles.controls}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Search by name, role, or skill..."
-          style={styles.searchInput}
-        />
-        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} style={styles.select}>
-          {DEPTS.map(d => <option key={d} value={d}>{d === 'All' ? '🏢 All Departments' : d}</option>)}
-        </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
-          <input type="checkbox" checked={activeOnly} onChange={e => setActiveOnly(e.target.checked)} />
-          Active only
-        </label>
-        <span style={{ color: '#6b7280', fontSize: 14, marginLeft: 'auto' }}>
-          Showing <strong>{filtered.length}</strong> of {EMPLOYEES.length} employees
-        </span>
-      </div>
-
-      {/* Table — each row needs a unique key */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={styles.table}>
-          <thead>
-            <tr style={{ background: '#1e3a8a', color: '#fff' }}>
-              <SortTh col="id"     label="#"          />
-              <SortTh col="name"   label="Name / Role" />
-              <SortTh col="dept"   label="Department"  />
-              <SortTh col="salary" label="Salary"      />
-              <th style={th}>Status</th>
-              <th style={th}>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length > 0
-              ? filtered.map((emp, i) => (
-                  // KEY must be stable and unique — using emp.id (not index)
-                  <EmployeeRow key={emp.id} emp={emp} index={i} />
-                ))
-              : (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: 30, color: '#9ca3af' }}>
-                    😕 No employees match your filters.
-                  </td>
-                </tr>
-              )
-            }
-          </tbody>
-        </table>
-      </div>
-
-      {/* Department Summary — nested lists */}
-      <h2 style={{ color: '#1e3a8a', marginTop: 32 }}>Department Summary</h2>
-      <div style={styles.summaryGrid}>
-        {deptGroups.map(({ dept, employees }) => (
-          // KEY on outermost element of each iteration
-          <DeptSummaryCard key={dept} dept={dept} employees={employees} />
+      {/* Step Indicator */}
+      <div style={styles.stepRow}>
+        {STEP_LABELS.map((label, i) => (
+          <React.Fragment key={label}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', margin: '0 auto 4px',
+                background: i + 1 <= step ? '#2563eb' : '#e2e8f0',
+                color: i + 1 <= step ? '#fff' : '#9ca3af',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold',
+              }}>
+                {i + 1 < step ? '✓' : i + 1}
+              </div>
+              <span style={{ fontSize: 12, color: i + 1 === step ? '#2563eb' : '#6b7280', fontWeight: i + 1 === step ? 600 : 400 }}>
+                {label}
+              </span>
+            </div>
+            {i < 2 && <div style={{ flex: 1, height: 3, background: i + 1 < step ? '#2563eb' : '#e2e8f0', marginBottom: 20, marginTop: 16 }} />}
+          </React.Fragment>
         ))}
       </div>
 
-      {/* Key best practices note */}
-      <div style={styles.noteBox}>
-        <h4 style={{ margin: '0 0 8px' }}>📝 Key Rules in React</h4>
-        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8 }}>
-          <li><strong>Keys must be unique</strong> among siblings (not globally)</li>
-          <li><strong>Never use array index as key</strong> if the list can be reordered/filtered (causes bugs)</li>
-          <li><strong>Use stable IDs</strong> from data — e.g., <code>emp.id</code>, <code>uuid</code></li>
-          <li>Keys help React identify which items changed, were added, or removed</li>
-          <li>Keys do <strong>not</strong> get passed as a prop — use a separate prop if needed</li>
-        </ul>
-      </div>
+      <form onSubmit={handleSubmit} style={styles.form}>
+
+        {/* ── STEP 1: Personal Info ── */}
+        {step === 1 && (
+          <>
+            <h2 style={styles.stepTitle}>Step 1: Personal Information</h2>
+            <div style={styles.row}>
+              <Field label="First Name" required error={errors.firstName}>
+                <input {...inp('firstName')} placeholder="Priya" />
+              </Field>
+              <Field label="Last Name" required error={errors.lastName}>
+                <input {...inp('lastName')} placeholder="Sharma" />
+              </Field>
+            </div>
+            <div style={styles.row}>
+              <Field label="Email Address" required error={errors.email}>
+                <input {...inp('email')} type="email" placeholder="priya@example.com" />
+              </Field>
+              <Field label="Phone Number" required error={errors.phone}>
+                <input {...inp('phone')} placeholder="10-digit mobile" maxLength={10} />
+              </Field>
+            </div>
+            <div style={styles.row}>
+              <Field label="Password" required error={errors.password}>
+                <input {...inp('password')} type="password" placeholder="Min 8 chars" />
+                <PasswordStrength password={form.password} />
+              </Field>
+              <Field label="Confirm Password" required error={errors.confirmPassword}>
+                <input {...inp('confirmPassword')} type="password" placeholder="Repeat password" />
+              </Field>
+            </div>
+            <div style={styles.row}>
+              <Field label="Date of Birth" required error={errors.dob}>
+                <input {...inp('dob')} type="date" />
+              </Field>
+              <Field label="Gender" required error={errors.gender}>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 4 }}>
+                  {GENDERS.map(g => (
+                    <label key={g} style={styles.radioLabel}>
+                      <input type="radio" name="gender" value={g}
+                        checked={form.gender === g} onChange={handleChange} />
+                      {g}
+                    </label>
+                  ))}
+                </div>
+                {errors.gender && <span style={styles.errorText}>⚠ {errors.gender}</span>}
+              </Field>
+            </div>
+          </>
+        )}
+
+        {/* ── STEP 2: Course & Address ── */}
+        {step === 2 && (
+          <>
+            <h2 style={styles.stepTitle}>Step 2: Course & Address</h2>
+            <Field label="Select Course" required error={errors.course}>
+              <select name="course" value={form.course} onChange={handleChange}
+                style={{ ...styles.input, borderColor: errors.course ? '#ef4444' : '#d1d5db' }}>
+                {COURSES.map(c => <option key={c} value={c}>{c || '-- Select a course --'}</option>)}
+              </select>
+            </Field>
+            <Field label="Experience Level" required error={errors.experience}>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 4 }}>
+                {['Fresher (0-1 yr)', 'Junior (1-3 yrs)', 'Mid (3-6 yrs)', 'Senior (6+ yrs)'].map(e => (
+                  <label key={e} style={styles.radioLabel}>
+                    <input type="radio" name="experience" value={e}
+                      checked={form.experience === e} onChange={handleChange} />
+                    {e}
+                  </label>
+                ))}
+              </div>
+              {errors.experience && <span style={styles.errorText}>⚠ {errors.experience}</span>}
+            </Field>
+            <Field label="Full Address" required error={errors.address}>
+              <textarea {...inp('address')} rows={3} placeholder="Flat no, Street, City"
+                style={{ ...styles.input, resize: 'vertical' }} />
+            </Field>
+            <div style={styles.row}>
+              <Field label="State" required error={errors.state}>
+                <select name="state" value={form.state} onChange={handleChange}
+                  style={{ ...styles.input, borderColor: errors.state ? '#ef4444' : '#d1d5db' }}>
+                  {STATES.map(s => <option key={s} value={s}>{s || '-- Select state --'}</option>)}
+                </select>
+              </Field>
+              <Field label="Pincode" required error={errors.pincode}>
+                <input {...inp('pincode')} placeholder="6-digit pincode" maxLength={6} />
+              </Field>
+            </div>
+          </>
+        )}
+
+        {/* ── STEP 3: Preferences & Submit ── */}
+        {step === 3 && (
+          <>
+            <h2 style={styles.stepTitle}>Step 3: Preferences & Submit</h2>
+            <Field label="Preferred Batch" error={errors.batch}>
+              <select name="batch" value={form.batch} onChange={handleChange} style={styles.input}>
+                {['', 'Weekday Morning (9AM–12PM)', 'Weekday Evening (6PM–9PM)', 'Weekend (10AM–2PM)'].map(b => (
+                  <option key={b} value={b}>{b || '-- Select batch (optional) --'}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="How did you hear about us?" required error={errors.hearFrom}>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 4 }}>
+                {['LinkedIn', 'College', 'Friend', 'Google', 'Cognizant Portal'].map(src => (
+                  <label key={src} style={styles.radioLabel}>
+                    <input type="checkbox" name="hearFrom" value={src}
+                      checked={form.hearFrom.includes(src)} onChange={handleChange} />
+                    {src}
+                  </label>
+                ))}
+              </div>
+            </Field>
+            {/* Review Summary */}
+            <div style={styles.reviewBox}>
+              <h4 style={{ margin: '0 0 10px' }}>📋 Registration Summary</h4>
+              {[
+                ['Name',       `${form.firstName} ${form.lastName}`],
+                ['Email',      form.email],
+                ['Phone',      form.phone],
+                ['Course',     form.course],
+                ['Experience', form.experience],
+                ['State',      form.state],
+              ].map(([k, v]) => v && (
+                <div key={k} style={styles.reviewRow}>
+                  <span style={{ color: '#6b7280' }}>{k}</span>
+                  <strong>{v}</strong>
+                </div>
+              ))}
+            </div>
+            <label style={{ ...styles.radioLabel, display: 'flex', marginBottom: 10 }}>
+              <input type="checkbox" name="terms" checked={form.terms} onChange={handleChange} />
+              <span style={{ marginLeft: 8 }}>
+                I accept the <a href="#" style={{ color: '#2563eb' }}>Terms & Conditions</a> and{' '}
+                <a href="#" style={{ color: '#2563eb' }}>Privacy Policy</a> *
+              </span>
+            </label>
+            {errors.terms && <span style={styles.errorText}>⚠ {errors.terms}</span>}
+            <label style={{ ...styles.radioLabel, display: 'flex' }}>
+              <input type="checkbox" name="newsletter" checked={form.newsletter} onChange={handleChange} />
+              <span style={{ marginLeft: 8 }}>Subscribe to newsletter and updates</span>
+            </label>
+          </>
+        )}
+
+        {/* Navigation Buttons */}
+        <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+          {step > 1 && (
+            <button type="button" onClick={handleBack}
+              style={{ ...styles.submitBtn, background: '#6b7280', flex: 1 }}>
+              ← Back
+            </button>
+          )}
+          {step < 3 ? (
+            <button type="button" onClick={handleNext}
+              style={{ ...styles.submitBtn, flex: 2 }}>
+              Next →
+            </button>
+          ) : (
+            <button type="submit" style={{ ...styles.submitBtn, background: '#10b981', flex: 2 }}>
+              ✅ Submit Registration
+            </button>
+          )}
+        </div>
+      </form>
     </div>
   );
 }
-function stringToColor(str) {
-  const colors = ['#2563eb','#7c3aed','#0891b2','#059669','#d97706','#dc2626'];
-  let hash = 0;
-  for (let c of str) hash = c.charCodeAt(0) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
 const styles = {
-  container:   { fontFamily: "'Segoe UI', Arial, sans-serif", maxWidth: 1050, margin: '0 auto', padding: 24, color: '#1e293b' },
-  controls:    { display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' },
-  searchInput: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14, flex: 1, minWidth: 200 },
-  select:      { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 14 },
-  table:       { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
-  avatar:      { width: 36, height: 36, borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 16, flexShrink: 0 },
-  statusTag:   { padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 },
-  badge:       { background: '#dbeafe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500 },
-  summaryGrid: { display: 'flex', gap: 16, flexWrap: 'wrap' },
-  summaryCard: { flex: 1, minWidth: 220, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 16 },
-  summaryRow:  { display: 'flex', justifyContent: 'space-between', margin: '4px 0', fontSize: 14 },
-  noteBox:     { background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, padding: 16, marginTop: 24 },
+  container:    { fontFamily: "'Segoe UI', Arial, sans-serif", maxWidth: 720, margin: '0 auto', padding: 24, color: '#1e293b' },
+  form:         { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 28 },
+  stepRow:      { display: 'flex', alignItems: 'center', marginBottom: 28 },
+  stepTitle:    { color: '#1e3a8a', margin: '0 0 20px', fontSize: 18 },
+  row:          { display: 'flex', gap: 16, flexWrap: 'wrap' },
+  field:        { flex: 1, minWidth: 220, marginBottom: 16 },
+  label:        { display: 'block', fontWeight: 600, fontSize: 14, color: '#374151', marginBottom: 6 },
+  input:        { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid', fontSize: 14, outline: 'none', boxSizing: 'border-box', background: '#fff' },
+  errorText:    { display: 'block', color: '#dc2626', fontSize: 12, marginTop: 4 },
+  radioLabel:   { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' },
+  submitBtn:    { padding: '11px 0', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 15, fontWeight: 600 },
+  reviewBox:    { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 16, marginBottom: 16 },
+  reviewRow:    { display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 6 },
+  successScreen:{ textAlign: 'center', background: '#f0fdf4', border: '2px solid #86efac', borderRadius: 12, padding: 40 },
 };
-const td = { padding: '10px 14px', borderBottom: '1px solid #f1f5f9' };
-const th = { padding: '11px 14px', textAlign: 'left', fontWeight: 600 };
 
 export default App;
